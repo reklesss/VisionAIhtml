@@ -4,9 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Чат-бот VisionIAS</title>
+    <!-- Подключаем библиотеку Hugging Face -->
     <script type="module">
         import { HfInference } from 'https://jsdelivr.net';
         window.HfInference = HfInference;
+        // Сигнализируем системе, что библиотека успешно загружена в глобальную видимость
+        window.dispatchEvent(new Event('hf-sdk-ready'));
     </script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
@@ -15,6 +18,7 @@
         .chat-header { background: #007bff; color: white; padding: 15px; text-align: center; font-size: 1.2rem; font-weight: bold; position: relative; }
         .token-status { font-size: 11px; font-weight: normal; opacity: 0.8; margin-top: 4px; display: block; }
         .reset-token-btn { position: absolute; right: 15px; top: 22px; background: rgba(255,255,255,0.2); color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; }
+        .reset-token-btn:hover { background: rgba(255,255,255,0.4); }
         .chat-messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
         .message { max-width: 80%; padding: 12px 16px; border-radius: 8px; line-height: 1.4; word-break: break-word; }
         .user-message { background: #007bff; color: white; align-self: flex-end; border-bottom-right-radius: 0; }
@@ -36,12 +40,12 @@
 
 <div class="chat-container">
     <div class="chat-header">
-        VisionIAS Chatbot
-        <span class="token-status" id="token-status">Токен: Ожидание</span>
+        VisionAI HTML Chatbot
+        <span class="token-status" id="token-status">Токен: Загрузка библиотек...</span>
         <button class="reset-token-btn" onclick="resetToken()">Сменить токен</button>
     </div>
     <div class="chat-messages" id="chat-messages">
-        <div class="message bot-message">Код успешно обновлен! Вставьте ваш новый токен в появившееся окошко.</div>
+        <div class="message bot-message">Скрипт инициализации обновлен. Теперь токен привяжется корректно.</div>
     </div>
     
     <div class="chat-input-area">
@@ -65,16 +69,24 @@
     let selectedImageBase64 = null;
     let hfClient = null;
 
-    function checkToken() {
+    // Функция проверки и настройки авторизации
+    function initInferenceSystem() {
         let token = localStorage.getItem('hf_user_token');
+        
         if (!token) {
-            token = prompt("Пожалуйста, вставьте ваш новый рабочий токен Hugging Face (read):");
-            if (token) localStorage.setItem('hf_user_token', token.trim());
+            token = prompt("Пожалуйста, вставьте ваш новый рабочий токен Hugging Face (с правами read):");
+            if (token) {
+                localStorage.setItem('hf_user_token', token.trim());
+            }
         }
         
         if (token && window.HfInference) {
-            hfClient = new window.HfInference(token.trim());
-            document.getElementById('token-status').innerText = "Токен: Активен локально";
+            try {
+                hfClient = new window.HfInference(token.trim());
+                document.getElementById('token-status').innerText = "Токен: Активен локально";
+            } catch(e) {
+                document.getElementById('token-status').innerText = "Ошибка активации клиента";
+            }
         } else {
             document.getElementById('token-status').innerText = "Токен: Не задан";
         }
@@ -82,15 +94,23 @@
 
     function resetToken() {
         localStorage.removeItem('hf_user_token');
-        checkToken();
+        initInferenceSystem();
     }
 
+    // Слушаем событие полной готовности SDK и только тогда запрашиваем/инициализируем токен
+    window.addEventListener('hf-sdk-ready', () => {
+        initInferenceSystem();
+    });
+
+    // Резервная проверка на случай, если SDK загрузился мгновенно из кэша
     window.addEventListener('load', () => {
-        setTimeout(checkToken, 600);
+        if (window.HfInference) {
+            initInferenceSystem();
+        }
     });
 
     function handleImageSelect(event) {
-        const file = event.target.files[0];
+        const file = event.target.files;
         if (!file) return;
         const reader = new FileReader();
         reader.onload = function(e) {
@@ -133,7 +153,10 @@
     }
 
     async function sendMessage() {
-        if (!hfClient) { checkToken(); return; }
+        if (!hfClient) { 
+            alert("Токен не инициализирован. Нажмите кнопку 'Сменить токен' вверху."); 
+            return; 
+        }
         const textInput = document.getElementById('text-input');
         const sendBtn = document.getElementById('send-btn');
         const text = textInput.value.trim();
@@ -157,7 +180,7 @@
         try {
             let responseText = "";
             if (currentImage) {
-                const base64Data = currentImage.split(',')[1];
+                const base64Data = currentImage.split(',');
                 const binary = atob(base64Data);
                 const array = [];
                 for (let i = 0; i < binary.length; i++) array.push(binary.charCodeAt(i));
