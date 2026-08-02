@@ -1,216 +1,197 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VisionAI HTML Chatbot</title>
-    <!-- Подключаем библиотеку Hugging Face -->
-    <script type="module">
-        import { HfInference } from 'https://jsdelivr.net';
-        window.HfInference = HfInference;
-        // Сигнализируем системе, что библиотека успешно загружена в глобальную видимость
-        window.dispatchEvent(new Event('hf-sdk-ready'));
-    </script>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; }
-        .chat-container { width: 100%; max-width: 600px; height: 90vh; background: white; display: flex; flex-direction: column; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); overflow: hidden; }
-        .chat-header { background: #007bff; color: white; padding: 15px; text-align: center; font-size: 1.2rem; font-weight: bold; position: relative; }
-        .token-status { font-size: 11px; font-weight: normal; opacity: 0.8; margin-top: 4px; display: block; }
-        .reset-token-btn { position: absolute; right: 15px; top: 22px; background: rgba(255,255,255,0.2); color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; }
-        .reset-token-btn:hover { background: rgba(255,255,255,0.4); }
-        .chat-messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
-        .message { max-width: 80%; padding: 12px 16px; border-radius: 8px; line-height: 1.4; word-break: break-word; }
-        .user-message { background: #007bff; color: white; align-self: flex-end; border-bottom-right-radius: 0; }
-        .bot-message { background: #e9ecef; color: #333; align-self: flex-start; border-bottom-left-radius: 0; }
-        .message img { max-width: 100%; max-height: 200px; display: block; margin-top: 8px; border-radius: 4px; }
-        .chat-input-area { padding: 15px; background: #f8f9fa; border-top: 1px solid #dee2e6; display: flex; flex-direction: column; gap: 10px; }
-        .preview-container { display: none; position: relative; align-self: flex-start; }
-        .preview-image { max-height: 80px; border-radius: 6px; border: 1px solid #ddd; }
-        .remove-preview { position: absolute; top: -5px; right: -5px; background: red; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; cursor: pointer; }
-        .input-row { display: flex; gap: 10px; align-items: center; }
-        textarea { flex: 1; resize: none; height: 45px; padding: 12px; border: 1px solid #ced4da; border-radius: 20px; outline: none; font-size: 14px; }
-        .icon-btn { background: none; border: none; cursor: pointer; padding: 8px; font-size: 20px; color: #6c757d; }
-        .send-btn { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; }
-        .send-btn:disabled { background: #cccccc; cursor: not-allowed; }
-        #file-input { display: none; }
-    </style>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Чат-бот VisionIAS</title>
+	<script type="module">
+		import { HfInference } from 'https://jsdelivr.net';
+		window.HfInference = HfInference;
+		window.dispatchEvent(new Event('hf-sdk-ready'));
+	</script>
+	<style>
+		* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+		body { background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; }
+		.chat-container { width: 100%; max-width: 600px; height: 90vh; background: white; display: flex; flex-direction: column; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); overflow: hidden; }
+		.chat-header { background: #007bff; color: white; padding: 12px 15px; display: flex; flex-direction: column; gap: 8px; align-items: center; border-bottom: 1px solid #0069d9; }
+		.header-title { font-size: 1.2rem; font-weight: bold; }
+		.token-area { width: 100%; display: flex; gap: 8px; align-items: center; }
+		.token-input { flex: 1; padding: 6px 12px; border: 1px solid rgba(255,255,255,0.4); border-radius: 6px; font-size: 12px; background: rgba(255,255,255,0.15); color: white; outline: none; }
+		.token-input::placeholder { color: rgba(255,255,255,0.7); }
+		.status-badge { font-size: 11px; padding: 4px 8px; border-radius: 4px; background: #dc3545; color: white; font-weight: bold; white-space: nowrap; }
+		.status-badge.active { background: #28a745; }
+		.chat-messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+		.message { max-width: 80%; padding: 12px 16px; border-radius: 8px; line-height: 1.4; word-break: break-word; }
+		.user-message { background: #007bff; color: white; align-self: flex-end; border-bottom-right-radius: 0; }
+		.bot-message { background: #e9ecef; color: #333; align-self: flex-start; border-bottom-left-radius: 0; }
+		.message img { max-width: 100%; max-height: 200px; display: block; margin-top: 8px; border-radius: 4px; }
+		.chat-input-area { padding: 15px; background: #f8f9fa; border-top: 1px solid #dee2e6; display: flex; flex-direction: column; gap: 10px; }
+		.preview-container { display: none; position: relative; align-self: flex-start; }
+		.preview-image { max-height: 80px; border-radius: 6px; border: 1px solid #ddd; }
+		.remove-preview { position: absolute; top: -5px; right: -5px; background: red; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; cursor: pointer; }
+		.input-row { display: flex; gap: 10px; align-items: center; }
+		.icon-btn { background: none; border: none; cursor: pointer; padding: 8px; font-size: 20px; color: #6c757d; }
+		textarea { flex: 1; resize: none; height: 45px; padding: 12px; border: 1px solid #ced4da; border-radius: 20px; outline: none; font-size: 14px; }
+		.send-btn { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; }
+		.send-btn:disabled { background: #cccccc; cursor: not-allowed; }
+		#file-input { display: none; }
+	</style>
 </head>
 <body>
-
-<div class="chat-container">
-    <div class="chat-header">
-        VisionAI HTML Chatbot
-        <span class="token-status" id="token-status">Токен: Загрузка библиотек...</span>
-        <button class="reset-token-btn" onclick="resetToken()">Сменить токен</button>
-    </div>
-    <div class="chat-messages" id="chat-messages">
-        <div class="message bot-message">Скрипт инициализации обновлен. Теперь токен привяжется корректно.</div>
-    </div>
-    
-    <div class="chat-input-area">
-        <div class="preview-container" id="preview-container">
-            <img class="preview-image" id="preview-image" src="">
-            <button class="remove-preview" onclick="clearImagePreview()">&times;</button>
-        </div>
-        
-        <div class="input-row">
-            <label for="file-input" class="icon-btn">&#128247;</label>
-            <input type="file" id="file-input" accept="image/*" onchange="handleImageSelect(event)">
-            
-            <textarea id="text-input" placeholder="Введите сообщение..." onkeydown="handleKeyDown(event)"></textarea>
-            <button class="send-btn" id="send-btn" onclick="sendMessage()">Отправить</button>
-        </div>
-    </div>
-</div>
-
-<script>
-    const MODEL_ID = "saurabhvisionias/visionias_model_v1";
-    let selectedImageBase64 = null;
-    let hfClient = null;
-
-    // Функция проверки и настройки авторизации
-    function initInferenceSystem() {
-        let token = localStorage.getItem('hf_user_token');
-        
-        if (!token) {
-            token = prompt("Пожалуйста, вставьте ваш новый рабочий токен Hugging Face (с правами read):");
-            if (token) {
-                localStorage.setItem('hf_user_token', token.trim());
-            }
-        }
-        
-        if (token && window.HfInference) {
-            try {
-                hfClient = new window.HfInference(token.trim());
-                document.getElementById('token-status').innerText = "Токен: Активен локально";
-            } catch(e) {
-                document.getElementById('token-status').innerText = "Ошибка активации клиента";
-            }
-        } else {
-            document.getElementById('token-status').innerText = "Токен: Не задан";
-        }
-    }
-
-    function resetToken() {
-        localStorage.removeItem('hf_user_token');
-        initInferenceSystem();
-    }
-
-    // Слушаем событие полной готовности SDK и только тогда запрашиваем/инициализируем токен
-    window.addEventListener('hf-sdk-ready', () => {
-        initInferenceSystem();
-    });
-
-    // Резервная проверка на случай, если SDK загрузился мгновенно из кэша
-    window.addEventListener('load', () => {
-        if (window.HfInference) {
-            initInferenceSystem();
-        }
-    });
-
-    function handleImageSelect(event) {
-        const file = event.target.files;
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            selectedImageBase64 = e.target.result;
-            document.getElementById('preview-image').src = selectedImageBase64;
-            document.getElementById('preview-container').style.display = 'block';
-        };
-        reader.readAsDataURL(file);
-    }
-
-    function clearImagePreview() {
-        selectedImageBase64 = null;
-        document.getElementById('file-input').value = '';
-        document.getElementById('preview-container').style.display = 'none';
-    }
-
-    function handleKeyDown(event) {
-        if (event.key === 'Enter' && !event.shiftKey) {
-            event.preventDefault();
-            sendMessage();
-        }
-    }
-
-    function appendMessage(text, isUser, imageSrc = null) {
-        const messagesContainer = document.getElementById('chat-messages');
-        const messageDiv = document.createElement('div');
-        messageDiv.classList.add('message', isUser ? 'user-message' : 'bot-message');
-        if (text) {
-            const span = document.createElement('span');
-            span.innerText = text;
-            messageDiv.appendChild(span);
-        }
-        if (imageSrc) {
-            const img = document.createElement('img');
-            img.src = imageSrc;
-            messageDiv.appendChild(img);
-        }
-        messagesContainer.appendChild(messageDiv);
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    }
-
-    async function sendMessage() {
-        if (!hfClient) { 
-            alert("Токен не инициализирован. Нажмите кнопку 'Сменить токен' вверху."); 
-            return; 
-        }
-        const textInput = document.getElementById('text-input');
-        const sendBtn = document.getElementById('send-btn');
-        const text = textInput.value.trim();
-        const currentImage = selectedImageBase64;
-
-        if (!text && !currentImage) return;
-
-        textInput.value = '';
-        clearImagePreview();
-        textInput.disabled = true;
-        sendBtn.disabled = true;
-
-        appendMessage(text, true, currentImage);
-
-        const messagesContainer = document.getElementById('chat-messages');
-        const loadingDiv = document.createElement('div');
-        loadingDiv.classList.add('message', 'bot-message');
-        loadingDiv.innerText = "Думаю...";
-        messagesContainer.appendChild(loadingDiv);
-
-        try {
-            let responseText = "";
-            if (currentImage) {
-                const base64Data = currentImage.split(',');
-                const binary = atob(base64Data);
-                const array = [];
-                for (let i = 0; i < binary.length; i++) array.push(binary.charCodeAt(i));
-                const blob = new Blob([new Uint8Array(array)], {type: 'image/jpeg'});
-
-                const res = await hfClient.visualQuestionAnswering({
-                    model: MODEL_ID,
-                    inputs: { image: blob, question: text || "Describe this image" }
-                });
-                responseText = res.answer || JSON.stringify(res);
-            } else {
-                const res = await hfClient.textGeneration({
-                    model: MODEL_ID,
-                    inputs: text,
-                    parameters: { max_new_tokens: 200 }
-                });
-                responseText = res.generated_text || JSON.stringify(res);
-            }
-            loadingDiv.remove();
-            appendMessage(responseText, false);
-        } catch (error) {
-            loadingDiv.remove();
-            appendMessage(`Ошибка: ${error.message}`, false);
-        } finally {
-            textInput.disabled = false;
-            sendBtn.disabled = false;
-            textInput.focus();
-        }
-    }
-</script>
-
+	<div class="chat-container">
+		<div class="chat-header">
+			<div class="header-title">VisionIAS Chatbot</div>
+			<div class="token-area">
+				<input type="password" id="token-input" class="token-input" placeholder="Введите токен HF (hf_...)" oninput="handleTokenInput(this.value)">
+				<span id="status-badge" class="status-badge">Выключен</span>
+			</div>
+		</div>
+		<div class="chat-messages" id="chat-messages">
+			<div class="message bot-message">Поле для токена находится вверху страницы. Вставьте ваш ключ от Hugging Face, чтобы начать общение. Для отправки картинок используйте кнопку со значком фотоаппарата.</div>
+		</div>
+		<div class="chat-input-area">
+			<div class="preview-container" id="preview-container">
+				<img class="preview-image" id="preview-image" src="">
+				<button class="remove-preview" onclick="clearImagePreview()">&times;</button>
+			</div>
+			<div class="input-row">
+				<label for="file-input" class="icon-btn" title="Прикрепить изображение">&#128247;</label>
+				<input type="file" id="file-input" accept="image/*" onchange="handleImageSelect(event)">
+				<textarea id="text-input" placeholder="Введите сообщение..." onkeydown="handleKeyDown(event)"></textarea>
+				<button class="send-btn" id="send-btn" onclick="sendMessage()">Отправить</button>
+			</div>
+		</div>
+	</div>
+	<script>
+		const MODEL_ID = "saurabhvisionias/visionias_model_v1";
+		let selectedImageBase64 = null;
+		let hfClient = null;
+		function loadSavedToken() {
+			const savedToken = localStorage.getItem('hf_user_token');
+			if (savedToken) {
+				document.getElementById('token-input').value = savedToken;
+				applyToken(savedToken);
+			}
+		}
+		function handleTokenInput(value) {
+			const cleanToken = value.trim();
+			if (cleanToken) {
+				localStorage.setItem('hf_user_token', cleanToken);
+				applyToken(cleanToken);
+			} else {
+				localStorage.removeItem('hf_user_token');
+				hfClient = null;
+				updateStatus(false, "Выключен");
+			}
+		}
+		function applyToken(token) {
+			if (window.HfInference) {
+				try {
+					hfClient = new window.HfInference(token);
+					updateStatus(true, "Активен");
+				} catch (e) {
+					updateStatus(false, "Ошибка");
+				}
+			} else {
+				updateStatus(false, "Загрузка...");
+			}
+		}
+		function updateStatus(isActive, text) {
+			const badge = document.getElementById('status-badge');
+			badge.innerText = text;
+			if (isActive) { badge.classList.add('active'); } else { badge.classList.remove('active'); }
+		}
+		window.addEventListener('hf-sdk-ready', loadSavedToken);
+		window.addEventListener('load', () => { if (window.HfInference) loadSavedToken(); });
+		function handleImageSelect(event) {
+			const file = event.target.files[0];
+			if (!file) return;
+			const reader = new FileReader();
+			reader.onload = function(e) {
+				selectedImageBase64 = e.target.result;
+				document.getElementById('preview-image').src = selectedImageBase64;
+				document.getElementById('preview-container').style.display = 'block';
+			};
+			reader.readAsDataURL(file);
+		}
+		function clearImagePreview() {
+			selectedImageBase64 = null;
+			document.getElementById('file-input').value = '';
+			document.getElementById('preview-container').style.display = 'none';
+		}
+		function handleKeyDown(event) {
+			if (event.key === 'Enter' && !event.shiftKey) {
+				event.preventDefault();
+				sendMessage();
+			}
+		}
+		function appendMessage(text, isUser, imageSrc = null) {
+			const messagesContainer = document.getElementById('chat-messages');
+			const messageDiv = document.createElement('div');
+			messageDiv.classList.add('message', isUser ? 'user-message' : 'bot-message');
+			if (text) {
+				const span = document.createElement('span');
+				span.innerText = text;
+				messageDiv.appendChild(span);
+			}
+			if (imageSrc) {
+				const img = document.createElement('img');
+				img.src = imageSrc;
+				messageDiv.appendChild(img);
+			}
+			messagesContainer.appendChild(messageDiv);
+			messagesContainer.scrollTop = messagesContainer.scrollHeight;
+		}
+		async function sendMessage() {
+			if (!hfClient) { alert("Пожалуйста, введите рабочий токен Hugging Face в верхнее поле."); return; }
+			const textInput = document.getElementById('text-input');
+			const sendBtn = document.getElementById('send-btn');
+			const text = textInput.value.trim();
+			const currentImage = selectedImageBase64;
+			if (!text && !currentImage) return;
+			textInput.value = '';
+			clearImagePreview();
+			textInput.disabled = true;
+			sendBtn.disabled = true;
+			appendMessage(text, true, currentImage);
+			const messagesContainer = document.getElementById('chat-messages');
+			const loadingDiv = document.createElement('div');
+			loadingDiv.classList.add('message', 'bot-message');
+			loadingDiv.innerText = "Думаю...";
+			messagesContainer.appendChild(loadingDiv);
+			messagesContainer.scrollTop = messagesContainer.scrollHeight;
+			try {
+				let responseText = "";
+				if (currentImage) {
+					const base64Data = currentImage.split(',')[1];
+					const binary = atob(base64Data);
+					const array = [];
+					for (let i = 0; i < binary.length; i++) array.push(binary.charCodeAt(i));
+					const blob = new Blob([new Uint8Array(array)], {type: 'image/jpeg'});
+					const res = await hfClient.visualQuestionAnswering({
+						model: MODEL_ID,
+						inputs: { image: blob, question: text || "Describe this image" }
+					});
+					responseText = res.answer || JSON.stringify(res);
+				} else {
+					const res = await hfClient.textGeneration({
+						model: MODEL_ID,
+						inputs: text,
+						parameters: { max_new_tokens: 200 }
+					});
+					responseText = res.generated_text || JSON.stringify(res);
+				}
+				loadingDiv.remove();
+				appendMessage(responseText, false);
+			} catch (error) {
+				loadingDiv.remove();
+				appendMessage("Ошибка: " + error.message, false);
+			} finally {
+				textInput.disabled = false;
+				sendBtn.disabled = false;
+				textInput.focus();
+			}
+		}
+	</script>
 </body>
 </html>
